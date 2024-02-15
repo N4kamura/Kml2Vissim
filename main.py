@@ -9,7 +9,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 class Window(QMainWindow):
     def __init__(self):
         super().__init__()
-        uic.loadUi("shape2vissim.ui", self)
+        uic.loadUi("images/shape2vissim.ui", self)
 
         self.pushButton.clicked.connect(self.openfile)
         self.pushButton_2.clicked.connect(self.name)

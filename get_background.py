@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 from geographic_tools import *
 import subprocess
+import time
 
 class GoogleMapDownloader:
     def __init__(self,points,zoom):
@@ -109,6 +110,8 @@ def shape2png_function(kml_file,inpx_file_name) -> None:
             print(f"Descargando imagenes: {round((count+1)/(max_x+1-min_x)/(max_y+1-min_y)*100,0)}%")
             tile.generateImage(i,j,count=count,path=path)
             count += 1
+            if count%30 == 0:
+                time.sleep(1)
 
     #PROCESO DE MATCH DE IMÁGENES
     path = path +"\\"
@@ -183,6 +186,7 @@ def convert_background(kml_file,inpx_file_name) -> None:
     final_route2, _ = os.path.split(kml_file)
     input_png = final_route2 + '/FOTOGRAFIAS_'+inpx_file_name+'/FOTO_TOTAL.png'
     output_tif = final_route2 + '/FOTOGRAFIAS_'+inpx_file_name+'/FOTO_TOTAL.tif'
+    output_jpg = final_route2 + '/FOTOGRAFIAS_'+inpx_file_name+'/FOTO_TOTAL.jpg'
 
     #Coordenadas para transformar a .TIF
     lon1, lat1 = definitive_upper_left[0],definitive_upper_left[1]
@@ -191,6 +195,17 @@ def convert_background(kml_file,inpx_file_name) -> None:
     comando = f"gdal_translate -of GTiff -a_srs EPSG:4326 -a_ullr {lon1} {lat1} {lon2} {lat2} {input_png} {output_tif}"
     proceso = subprocess.Popen(comando, shell=True)
     proceso.wait()
+    comando2 = f"gdal_translate -of JPEG -co QUALITY=90 {output_tif} {output_jpg}"
+    proceso = subprocess.Popen(comando2, shell=True)
+    proceso.wait()
+
+    #Eliminación de archivos innecesarios:
+    photos_path = os.path.join(final_route2,'FOTOGRAFIAS_'+inpx_file_name)
+    photos_list = os.listdir(photos_path)
+    photos_list = [photo for photo in photos_list if not photo.endswith('.jpeg')]
+    for photo in photos_list:
+        delete_file = os.path.join(photos_path, photo)
+        os.remove(delete_file)
 
     #ESCRITURA EXTRA EN ARCHIVO DE INPX
     archivo_inpx = final_route2 +'\\'+ inpx_file_name + '.inpx'
@@ -212,7 +227,7 @@ def convert_background(kml_file,inpx_file_name) -> None:
     backgroundImage.set('level','1')
     backgroundImage.set('no','1')
     #AQUÍ TAMBIÉN DEBO COLOCAR LA RUTA DEL .TIF ya creado.
-    backgroundImage.set('pathFilename',output_tif)
+    backgroundImage.set('pathFilename',f'./FOTOGRAFIAS_{inpx_file_name}/FOTO_TOTAL.jpg')
     backgroundImage.set('res3D','HIGH')
     backgroundImage.set('tileSizeHoriz','512')
     backgroundImage.set('tileSizeVert','512')

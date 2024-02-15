@@ -81,8 +81,8 @@ def vissimcreator(kml_path,inpx_file_name) -> None:
 
     #CONVERSIÓN DEL DATAFRAME A INPX
     #Rutas
-    template_path   = "vacio.xml"
-    new_path        = "template_processing.xml"
+    template_path   = "images/vacio.xml"
+    new_path        = "images/template_processing.xml"
 
     shutil.copyfile(template_path,new_path)
 
@@ -104,8 +104,8 @@ def vissimcreator(kml_path,inpx_file_name) -> None:
     #ANALIZE: LINKS 27 & 19
     count = 1
     #print(edges.columns)
-    for i in range(3):
-        print(edges.iloc[i])
+    """ for i in range(3):
+        print(edges.iloc[i]) """
     for i in range(len(edges)):
         #Escritura de los datos propios del link
         link=ET.SubElement(links,'link')
@@ -162,16 +162,24 @@ def vissimcreator(kml_path,inpx_file_name) -> None:
         point3D.set('y',edges.iloc[i]['v_y_UTM'])
 
         #INGRESO DE LANES
-        '''if edges['oneway'].iloc[i]==False:
+        lanes = ET.SubElement(link, 'lanes')
+        for _ in range(2):
+            lane = ET.SubElement(lanes,'lane')
+            lane.set('wdith','3.3')
+
+        """ if edges['oneway'].iloc[i]==False:
             divisor = 2
         else:
-            divisor = 1'''
+            divisor = 1
+
+        if int(edges['lanes'].iloc[i])%2==0:
+            number_lanes = int(int(edges['lanes'].iloc[i])/divisor)
 
         lanes = ET.SubElement(link,'lanes')
-        lane = ET.SubElement(lanes,'lane')
-        lane.set('width','3.3')
-        lane = ET.SubElement(lanes,'lane')
-        lane.set('width','3.3')
+        for _ in range(number_lanes):
+            lane = ET.SubElement(lanes,'lane')
+            lane.set('width','3.3') """
+
         """ if isinstance(edges['lanes'].iloc[i],str):
             number_lanes = int(edges['lanes'].iloc[i])
             for _ in range(number_lanes):
