@@ -1,1 +1,1 @@
-pyinstaller --add-binary "gdalwin/bin/gdal.dll;." --add-binary "gdalwin/bin/gdal/apps/gdal_translate.exe;." kml2vissim.py
+pyinstaller --onefile --noconsole --icon=./images/earth.png --add-binary "gdalwin/bin/gdal.dll;." --add-binary "gdalwin/bin/gdal/apps/gdal_translate.exe;." ./main.py

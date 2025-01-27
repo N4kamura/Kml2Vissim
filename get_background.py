@@ -192,17 +192,17 @@ def convert_background(kml_file,inpx_file_name) -> None:
     lon1, lat1 = definitive_upper_left[0],definitive_upper_left[1]
     lon2, lat2 = definitive_bottom_right[0],definitive_bottom_right[1]
 
-    comando = f"gdal_translate -of GTiff -a_srs EPSG:4326 -a_ullr {lon1} {lat1} {lon2} {lat2} {input_png} {output_tif}"
+    comando = f'gdal_translate -of GTiff -a_srs EPSG:4326 -a_ullr {lon1} {lat1} {lon2} {lat2} "{input_png}" "{output_tif}"'
     proceso = subprocess.Popen(comando, shell=True)
     proceso.wait()
-    comando2 = f"gdal_translate -of JPEG -co QUALITY=90 {output_tif} {output_jpg}"
+    comando2 = f'gdal_translate -of JPEG -co QUALITY=90 "{output_tif}" "{output_jpg}"'
     proceso = subprocess.Popen(comando2, shell=True)
     proceso.wait()
 
     #Eliminación de archivos innecesarios:
     photos_path = os.path.join(final_route2,'FOTOGRAFIAS_'+inpx_file_name)
     photos_list = os.listdir(photos_path)
-    photos_list = [photo for photo in photos_list if not photo.endswith('.jpeg')]
+    photos_list = [photo for photo in photos_list if not photo.endswith('.jpg')]
     for photo in photos_list:
         delete_file = os.path.join(photos_path, photo)
         os.remove(delete_file)

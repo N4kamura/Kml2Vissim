@@ -1,9 +1,7 @@
 dist/
 shap-env/
-template_processing.xml
-vacio.xml
-shape2vissim.ui
 gdalwin/
 cache/
 __pycache__/
-images/
+build/
+kml2vissim/
