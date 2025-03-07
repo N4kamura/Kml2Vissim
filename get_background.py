@@ -8,15 +8,67 @@ import numpy as np
 from geographic_tools import *
 import subprocess
 import time
+from geopy.distance import geodesic
 
 class GoogleMapDownloader:
     def __init__(self,points,zoom):
         self.points=points
         self.zoom=zoom
 
+    def Calculate_box_use(self,coordinates):
+        if not coordinates:
+            return None, None, None, None
+        
+
+        x_min = x_max = coordinates [0][0]
+        y_min = y_max = coordinates [0][1]
+
+        for x, y in coordinates:
+            if x<x_min:
+                x_min = x
+            elif x>x_max:
+                x_max = x
+            if y<y_min:
+                y_min = y
+            elif y>y_max:
+                y_max = y
+        print(x_min,x_max,y_min,y_max)
+        lat_min=x_min
+        lat_max=x_max
+        lon_min=y_min
+        lon_max=y_max
+        print("geografica\tLatitud",lat_min,lat_max,"\tLongtud",lon_min,lon_max)
+        Lat_M_min,Long_M_min=Convert_to_mercator(lon_min,lat_min)
+        Lat_M_max,Long_M_max=Convert_to_mercator(lon_max,lat_max)
+        print("Latitud",Lat_M_min,Lat_M_max,"\tLongtud",Long_M_min,Long_M_max)
+        ancho=Long_M_max-Long_M_min
+        alto=Lat_M_max-Lat_M_min
+
+        # # Calcular ancho (Este-Oeste)
+        # lat_promedio = (lat_min + lat_max) / 2
+        # punto_oeste = (lat_promedio, lon_min)
+        # punto_este = (lat_promedio, lon_max)
+        # ancho = geodesic(punto_oeste, punto_este).meters
+        
+        # # Calcular alto (Norte-Sur)
+        # lon_promedio = (lon_min + lon_max) / 2
+        # punto_sur = (lat_min, lon_promedio)
+        # punto_norte = (lat_max, lon_promedio)
+        # alto = geodesic(punto_sur, punto_norte).meters
+
+        width = ancho
+        Hight = alto
+
+
+        print("funcion",width,Hight)
+        return width, Hight
+
+
+
     def CalculatePolygonBounds(self,coordinates):
         if not coordinates:
             return None, None, None, None
+        
 
         x_min = x_max = coordinates [0][0]
         y_min = y_max = coordinates [0][1]
@@ -31,7 +83,16 @@ class GoogleMapDownloader:
             elif y>y_max:
                 y_max = y
 
+        lat_promedio = (y_min + y_max) / 2
+        delta_x = x_max - x_min
+        delta_y = y_max - y_min
+        width = delta_x*111319.9 * math.cos(math.radians(lat_promedio))
+
+        Hight = delta_y*111319.9
+
+        #print("funcion",width,Hight)
         return x_min, x_max, y_min, y_max
+        #return x_min, x_max, y_min, y_max
     
     def getTileBounds(self,x,y):
         numTiles = 1 << self.zoom
@@ -86,16 +147,18 @@ def shape2png_function(kml_file,inpx_file_name) -> None:
         polygon_coordinates = [(float(lat), float(lon)) for lon, lat in coordinates_list]
         polygon = Polygon(polygon_coordinates)
         vertices_polygon = list(polygon.exterior.coords)
-
+        print("vertices_polygon",vertices_polygon)
     tile=GoogleMapDownloader(vertices_polygon,zoom=20)
     vertices=[]
 
     #En este bucle obtengo las coordenadas en TILE
     for i in range(len(vertices_polygon)):
         vertices.append(tile.getXY(vertices_polygon[i][0],vertices_polygon[i][1]))
-
+        print("vertices",vertices)
     #Valores de los límites de los TILES
     min_x,max_x,min_y,max_y=tile.CalculatePolygonBounds(vertices)
+    #width_pluss,Hight_pluss = tile.seccion_box(vertices)
+    #print("para vissim",width_pluss,Hight_pluss)
 
     #Extracción de coordenadas de las esquinas de los TILEs
     count = 0
@@ -164,6 +227,11 @@ def convert_background(kml_file,inpx_file_name) -> None:
 
     #Valores de los límites de los TILES
     min_x,max_x,min_y,max_y=tile.CalculatePolygonBounds(vertices)
+    #width_pluss,Hight_pluss = tile.seccion_box(vertices)
+
+
+    width_pluss,Hight_pluss = tile.Calculate_box_use(vertices_polygon)
+    print("para vissim_sumando",width_pluss,Hight_pluss)
 
     #Extracción de coordenadas de las esquinas de los TILEs
     esquina_sup_izq = (min_x,min_y)
@@ -181,6 +249,16 @@ def convert_background(kml_file,inpx_file_name) -> None:
     #Para Vissim
     coordTR = Convert_to_mercator(definitive_upper_right[0],definitive_upper_right[1])
     coordBL = Convert_to_mercator(definitive_bottom_left[0],definitive_bottom_left[1])
+    print("Coordenadas para Vissim dtR:",coordTR,"de :",definitive_upper_right[0],definitive_upper_right[1])
+    coordTR2 = (coordBL[0]+Hight_pluss,coordBL[1]+width_pluss)
+    print("Coordenadas para Vissim dtR2:",coordTR2,"de :",definitive_upper_right[0]+width_pluss,definitive_upper_right[1]+Hight_pluss)
+    print("para vissim_sumando",width_pluss,Hight_pluss)
+
+    #coordTR = convert_coords(definitive_upper_right[0],definitive_upper_right[1])
+    #coordBL = convert_coords(definitive_bottom_left[0],definitive_bottom_left[1])
+
+    #print("Coordenadas para Vissim dtR:",coordTR,"de :",definitive_upper_right[0],definitive_upper_right[1])
+    #print("Coordenadas para Vissim dBL:",coordBL,"de :",definitive_bottom_left[0],definitive_bottom_left[1])
 
     ###CONVERSION A FORMATO .tif
     final_route2, _ = os.path.split(kml_file)
@@ -214,11 +292,14 @@ def convert_background(kml_file,inpx_file_name) -> None:
     root = tree.getroot()
 
     #APLICACION DE DESFASE
+    #print("aplicación",coordBL[0],coordBL[1],coordTR[0],coordTR[1])
+
     coordBL[0] = str(float(coordBL[0]))
     coordBL[1] = str(float(coordBL[1]))
-
-    coordTR[0] = str(float(coordTR[0]))
-    coordTR[1] = str(float(coordTR[1]))
+    coordTR3=[None,None]
+    coordTR3[0] = str(float(coordTR2[0]))
+    coordTR3[1] = str(float(coordTR2[1]))
+    print("aplicación",coordBL[0],coordBL[1],coordTR3[0],coordTR3[1])
 
     #INGRESO DE BACKGROUND
     backgroundImages = ET.SubElement(root,'backgroundImages')
@@ -238,15 +319,15 @@ def convert_background(kml_file,inpx_file_name) -> None:
     coordBL_inpx.set('x',coordBL[0])
     coordBL_inpx.set('y',coordBL[1])
     coordTR_inpx = ET.SubElement(backgroundImage,'coordTR')
-    coordTR_inpx.set('x',coordTR[0])
-    coordTR_inpx.set('y',coordTR[1])
+    coordTR_inpx.set('x',coordTR3[0])
+    coordTR_inpx.set('y',coordTR3[1])
     #VISSIM 10
     posBL_inpx = ET.SubElement(backgroundImage,'posBL')
     posBL_inpx.set('x',coordBL[0])
     posBL_inpx.set('y',coordBL[1])
     posTR_inpx = ET.SubElement(backgroundImage,'posTR')
-    posTR_inpx.set('x',coordTR[0])
-    posTR_inpx.set('y',coordTR[1])
+    posTR_inpx.set('x',coordTR3[0])
+    posTR_inpx.set('y',coordTR3[1])
     
     ET.indent(root)
     et = ET.ElementTree(root)

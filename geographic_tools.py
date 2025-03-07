@@ -1,8 +1,21 @@
 import math
+from pyproj import Transformer
 
-RADIUS = 6390602.66473445
-A = 1.0030289588831154
-B = 1.003076128580129
+#RADIUS = 6390602.66473445
+#A = 1.0030289588831154
+#B = 1.003076128580129
+
+#RADIUS = 6378137
+RADIUS = 6371000
+A=1
+B=1
+
+
+# Function to convert coordinates from WGS84 to Web Mercator (EPSG:3857)
+def convert_coords(lon, lat):
+    transformer = Transformer.from_crs("epsg:4326", "epsg:3857")
+    x, y = transformer.transform(lat, lon)
+    return [x, y]
 
 def Convert_to_mercator(lon,lat): #Convierte de Geográficas a MERCATOR.
     lon_mer = lon*RADIUS*math.pi/180/B
