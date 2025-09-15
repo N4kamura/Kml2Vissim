@@ -1,5 +1,4 @@
 import math
-from pyproj import Transformer
 
 RADIUS = 6371000
 A=1

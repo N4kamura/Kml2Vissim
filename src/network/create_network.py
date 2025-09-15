@@ -25,7 +25,7 @@ def vissim_creator(kml_path,inpx_file_name) -> None:
 
     bbox = GoogleMapDownloader(polygon_coordinates,20)
 
-    x_min, x_max, y_min, y_max = bbox.CalculatePolygonBounds(polygon_coordinates)
+    x_min, x_max, y_min, y_max = bbox.calculate_polygon_bounds(polygon_coordinates)
 
     [x_min,y_min] = convert_to_mercator(x_min,y_min)
     [x_max,y_max] = convert_to_mercator(x_max,y_max)

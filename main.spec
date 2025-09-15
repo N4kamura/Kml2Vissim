@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['kml2vissim.py'],
+    ['main.py'],
     pathex=[],
     binaries=[('gdalwin/bin/gdal.dll', '.'), ('gdalwin/bin/gdal/apps/gdal_translate.exe', '.')],
     datas=[],
@@ -12,6 +12,7 @@ a = Analysis(
     runtime_hooks=[],
     excludes=[],
     noarchive=False,
+    optimize=0,
 )
 pyz = PYZ(a.pure)
 
@@ -21,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='kml2vissim',
+    name='kml2vissim_v3.0.3',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -34,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['images\\earth.png'],
+    icon=['images\\logo.ico'],
 )
