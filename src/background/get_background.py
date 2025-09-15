@@ -8,6 +8,7 @@ from src.background.utils.google_map_downloader import GoogleMapDownloader
 import subprocess
 import time
 from geopy.distance import geodesic
+from tqdm import tqdm
 
 def kml2png_function(kml_file,inpx_file_name) -> None:
     tree = ET.parse(kml_file)
@@ -40,13 +41,18 @@ def kml2png_function(kml_file,inpx_file_name) -> None:
     path = directory + '/' + 'FOTOGRAFIAS_'+inpx_file_name
     os.makedirs(path)
 
-    for i in range(min_x, max_x + 1):
-        for j in range(min_y, max_y + 1):
-            print(f"Descargando imagenes: {round((count+1)/(max_x+1-min_x)/(max_y+1-min_y)*100,0)}%")
-            tile.generate_image(i, j , count, path)
-            count += 1
-            if count%30 == 0:
-                time.sleep(1)
+    # Calculate total number of images to download
+    total_images = (max_x - min_x + 1) * (max_y - min_y + 1)
+    count = 0
+    
+    with tqdm(total=total_images, desc="Descargando imagenes") as pbar:
+        for i in range(min_x, max_x + 1):
+            for j in range(min_y, max_y + 1):
+                tile.generate_image(i, j, count, path)
+                count += 1
+                pbar.update(1)  # Update progress bar by 1 for each image
+                if count % 30 == 0:
+                    time.sleep(1)
 
     #PROCESO DE MATCH DE IMÁGENES
     path = path +"\\"
@@ -59,20 +65,22 @@ def kml2png_function(kml_file,inpx_file_name) -> None:
 
     grid_image = np.zeros((image_height * num_rows, image_width * num_columns, 3), dtype=np.uint8)
     count = 0
-    for col in range(num_columns):
-        for row in range(num_rows):
-            if count >= num_images:
-                break
-            print(f"Cargando y procesando fotos: {round((count+1)/num_images*100,0)}%")
-            image_path = f"FOTO_{count}.png"
-            image = cv2.imread(path+image_path)
-            start_row   = row*image_height
-            end_row     = start_row + image_height
-            start_col   = col*image_width
-            end_col     = start_col + image_width
+    # Use tqdm with total number of images for more granular progress tracking
+    with tqdm(total=num_images, desc="Cargando y procesando fotos") as pbar:
+        for col in range(num_columns):
+            for row in range(num_rows):
+                if count >= num_images:
+                    break
+                image_path = f"FOTO_{count}.png"
+                image = cv2.imread(path+image_path)
+                start_row   = row*image_height
+                end_row     = start_row + image_height
+                start_col   = col*image_width
+                end_col     = start_col + image_width
 
-            grid_image[start_row:end_row,start_col:end_col,:] = image
-            count += 1
+                grid_image[start_row:end_row,start_col:end_col,:] = image
+                count += 1
+                pbar.update(1)  # Update progress bar by 1 for each image processed
 
     cv2.imwrite(path+'\\FOTO_TOTAL.png',grid_image)
     print("FOTOGRAFIAS UNIDAS EXITOSAMENTE")
