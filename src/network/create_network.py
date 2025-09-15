@@ -1,13 +1,14 @@
-from geographic_tools import *
-from get_background import GoogleMapDownloader  
+from src.background.utils.geographic_tools import *
+from src.background.get_background import GoogleMapDownloader  
 import xml.etree.ElementTree as ET
 from shapely.geometry import Polygon
 import osmnx as ox
 import shutil
 import os
 import pandas as pd
+from src.network.utils.coordinate_tools import *
 
-def vissimcreator(kml_path,inpx_file_name) -> None:
+def vissim_creator(kml_path,inpx_file_name) -> None:
     #------------------------------------------------------------------------------#
     # Reading kml files to obtain coordinates #
     #------------------------------------------------------------------------------#
@@ -26,8 +27,8 @@ def vissimcreator(kml_path,inpx_file_name) -> None:
 
     x_min, x_max, y_min, y_max = bbox.CalculatePolygonBounds(polygon_coordinates)
 
-    [x_min,y_min] = Convert_to_mercator(x_min,y_min)
-    [x_max,y_max] = Convert_to_mercator(x_max,y_max)
+    [x_min,y_min] = convert_to_mercator(x_min,y_min)
+    [x_max,y_max] = convert_to_mercator(x_max,y_max)
 
     reference_point = ((x_min+x_max)/2,(y_min+y_max)/2)
 
@@ -227,6 +228,5 @@ def vissimcreator(kml_path,inpx_file_name) -> None:
     final_route = directory + '/' + inpx_file_name + '.inpx'
 
     et.write(final_route,xml_declaration=True)
-    #et.write("test.inpx",xml_declaration=True)
 
     print("FIN DE CREACIÓN DE REDES EN VISSIM")
