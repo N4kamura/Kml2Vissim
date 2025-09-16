@@ -7,35 +7,6 @@ class GoogleMapDownloader:
         self.points=points
         self.zoom=zoom
 
-    def polygon_dimensions(self, coordinates) -> list[float, float]:
-        if not coordinates:
-            return None, None, None, None
-        
-
-        x_min = x_max = coordinates [0][0]
-        y_min = y_max = coordinates [0][1]
-
-        for x, y in coordinates:
-            if x<x_min:
-                x_min = x
-            elif x>x_max:
-                x_max = x
-            if y<y_min:
-                y_min = y
-            elif y>y_max:
-                y_max = y
-
-        lat_min, lat_max = x_min, x_max
-        lon_min, lon_max = y_min, y_max
-
-        lat_min_mercator, lon_min_mercator = convert_to_mercator(lon_min, lat_min)
-        lat_max_mercator, lon_max_mercator = convert_to_mercator(lon_max, lat_max)
-
-        width = lon_max_mercator - lon_min_mercator
-        height = lat_max_mercator - lat_min_mercator
-
-        return width, height
-
     def calculate_polygon_bounds(self, coordinates) -> list[float, float, float, float]:
         if not coordinates:
             return None, None, None, None

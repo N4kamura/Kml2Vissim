@@ -108,21 +108,18 @@ def convert_background(kml_file,inpx_file_name) -> None:
     #Valores de los límites de los TILES
     min_x, max_x, min_y, max_y = tile.calculate_polygon_bounds(vertices)
 
-    width, height = tile.polygon_dimensions(vertices_polygon)
-
     upper_left_coord = tile.get_tile_bounds(min_x, min_y)    #[north,south,west,east]
     bottom_right_coord = tile.get_tile_bounds(max_x, max_y)  #[north,south,west,east]
     
     definitive_upper_left = (upper_left_coord[2], upper_left_coord[0]) #(lon,lat)
-    # definitive_upper_right = (bottom_right_coord[3], upper_left_coord[0])
+    definitive_upper_right = (bottom_right_coord[3], upper_left_coord[0])
 
     definitive_bottom_right = (bottom_right_coord[3], bottom_right_coord[1]) #(lon,lat)
     definitive_bottom_left = (upper_left_coord[2], bottom_right_coord[1])
 
     #Para Vissim
-    # coordTR = convert_to_mercator(definitive_upper_right[0], definitive_upper_right[1])
+    coordTR = convert_to_mercator(definitive_upper_right[0], definitive_upper_right[1])
     coordBL = convert_to_mercator(definitive_bottom_left[0], definitive_bottom_left[1])
-    coordTR = (coordBL[0] + height, coordBL[1] + width)
 
     ###CONVERSION A FORMATO .tif
     folder_path, _ = os.path.split(kml_file)

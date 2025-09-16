@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='kml2vissim_v3.0.3',
+    name='kml2vissim_v3.0.4',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
