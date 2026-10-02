@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMainWindow, QApplication, QFileDialog
+from PyQt5.QtWidgets import QMainWindow, QApplication, QFileDialog, QMessageBox
 from PyQt5 import uic
 import warnings
 from src.network.create_network import vissim_creator, sumo_creator
@@ -32,15 +32,24 @@ class Window(QMainWindow):
         self.ui.label_7.setText("Procesando...")
         QApplication.processEvents()
 
+        reused_bg = False
         if self.ui.radioButton_vissim.isChecked():
             vissim_creator(self.path_file, name_file)
-            kml2png_function(self.path_file, name_file)
+            reused_bg = kml2png_function(self.path_file, name_file)
             convert_background(self.path_file, name_file)
             self.ui.label_7.setText("¡Listo (Vissim)!")
         else:
             sumo_creator(self.path_file, name_file)
-            kml2sumo_decal(self.path_file, name_file)
+            reused_bg = kml2sumo_decal(self.path_file, name_file)
             self.ui.label_7.setText("¡Listo (SUMO)!")
+
+        if reused_bg:
+            QMessageBox.information(
+                self,
+                "Imagen de fondo reutilizada",
+                "La imagen 'background.jpg' ya existía en la carpeta 'background' y se ha reutilizado para la red.\n\n"
+                "En caso desee descargarla nuevamente, debe borrar el archivo 'background.jpg'."
+            )
 
 def main():
     app = QApplication([])

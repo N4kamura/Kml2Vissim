@@ -23,8 +23,8 @@ La aplicación extrae la red vial de OpenStreetMap delimitada estrictamente al �
    - Haga clic en **"Iniciar"** para comenzar el proceso de conversión.
 
 3. La aplicación generará en la misma carpeta del KML:
-   - **Para Vissim:** Archivo de red `.inpx` (con fondo satelital integrado) y subcarpeta `background/` con la imagen satelital (`background/FOTO_TOTAL.jpg`). Si por alguna razón la imagen no se puede descargar, se conserva el `.inpx` solo con la red.
-   - **Para SUMO:** Red vial (`<nombre>.net.xml`), configuración (`<nombre>.sumocfg`), script lanzador directo (`run_<nombre>.bat`) y subcarpeta `background/` conteniendo polígonos (`<nombre>.poly.xml`), vista (`<nombre>.view.xml`), datos OSM (`<nombre>_bbox.osm.xml`) y decals satelitales georreferenciados.
+   - **Para Vissim:** Archivo de red `.inpx` (con fondo satelital integrado) y subcarpeta `background/` con la imagen satelital (`background/background.jpg`). Si el archivo `background.jpg` ya existe, se reutiliza automáticamente. Si por alguna razón la imagen no se puede descargar, se conserva el `.inpx` solo con la red.
+   - **Para SUMO:** Red vial (`<nombre>.net.xml`), configuración (`<nombre>.sumocfg`), script lanzador directo (`run_<nombre>.bat`) y subcarpeta `background/` conteniendo polígonos (`<nombre>.poly.xml`), vista (`<nombre>.view.xml`), datos OSM (`<nombre>_bbox.osm.xml`) y la imagen georreferenciada (`background/background.jpg` y `.jgw`).
 
 ## Compilación desde el Código Fuente
 
