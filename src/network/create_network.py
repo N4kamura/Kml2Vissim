@@ -246,7 +246,7 @@ def download_osm_data(min_lon: float, min_lat: float, max_lon: float, max_lat: f
 
     # 1. API oficial de OSM (rápida, precisa y estrictamente limitada a la bbox del KML)
     osm_api_url = f"https://api.openstreetmap.org/api/0.6/map?bbox={min_lon:.6f},{min_lat:.6f},{max_lon:.6f},{max_lat:.6f}"
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Kml2Vissim/4.0.1'}
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) KML2Network/4.0.1'}
 
     print(f"Descargando datos OSM delimitados desde OSM API ({min_lon:.4f},{min_lat:.4f} a {max_lon:.4f},{max_lat:.4f})...")
     for attempt in range(1, max_retries + 1):
@@ -282,7 +282,7 @@ def download_osm_data(min_lon: float, min_lat: float, max_lon: float, max_lat: f
 
     overpass_headers = {
         'Content-Type': 'application/xml',
-        'User-Agent': 'Kml2Vissim/4.0.1 (sumo-export)',
+        'User-Agent': 'KML2Network/4.0.1 (sumo-export)',
         'Accept-Encoding': 'gzip'
     }
 

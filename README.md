@@ -1,6 +1,6 @@
-# KML2VISSIM & KML2SUMO
+# KML2Network
 
-KML2VISSIM es una aplicación de escritorio que convierte archivos KML (que contienen polígonos cerrados) en redes viales y fondos georreferenciados compatibles con **PTV VISSIM** (.inpx) y **Eclipse SUMO** (.net.xml, .poly.xml, .sumocfg).
+**KML2Network** es una aplicación de escritorio que convierte archivos KML (que contienen polígonos cerrados) en redes viales y fondos georreferenciados compatibles con **PTV VISSIM** (.inpx) y **Eclipse SUMO** (.net.xml, .poly.xml, .sumocfg).
 
 La aplicación extrae la red vial de OpenStreetMap delimitada estrictamente al área del polígono definido y descarga mosaicos satelitales en alta resolución para el fondo.
 
@@ -15,7 +15,7 @@ La aplicación extrae la red vial de OpenStreetMap delimitada estrictamente al �
 
 ## Uso de la Aplicación
 
-1. Ejecute el archivo `Kml2Vissim.exe`
+1. Ejecute el archivo `KML2Network.exe`
 2. En la interfaz gráfica:
    - Haga clic en **"Abrir Archivo"** para seleccionar un archivo KML que contenga un polígono cerrado.
    - Seleccione el destino: **Vissim** o **SUMO**.
@@ -37,7 +37,7 @@ Para generar el ejecutable autocontenido (`--onefile`) con consola activa:
 
 2. Compile con PyInstaller:
    ```bash
-   pyinstaller --onefile --console --name Kml2Vissim --icon=images/logo.ico --add-data "images;images" main.py
+   pyinstaller --onefile --console --name KML2Network --icon=images/logo.ico --add-data "images;images" main.py
    ```
 
 ## Estructura del Proyecto
@@ -45,7 +45,7 @@ Para generar el ejecutable autocontenido (`--onefile`) con consola activa:
 ```
 Kml2Vissim/
 ├── main.py                   # Punto de entrada de la aplicación
-├── Kml2Vissim.spec           # Configuración de PyInstaller
+├── KML2Network.spec          # Configuración de PyInstaller
 ├── requirements.txt          # Dependencias de Python
 ├── comando_pyinstaller.txt   # Comando de compilación
 ├── interface/                # Interfaz gráfica PyQt5

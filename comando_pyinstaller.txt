@@ -1,1 +1,1 @@
-pyinstaller --onefile --console --name Kml2Vissim --icon=images/logo.ico --add-data "images;images" main.py
+pyinstaller --onefile --console --name KML2Network --icon=images/logo.ico --add-data "images;images" main.py
