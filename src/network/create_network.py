@@ -82,13 +82,14 @@ def vissim_creator(kml_path,inpx_file_name) -> None:
 
     #CONVERSIÓN DEL DATAFRAME A INPX
     #Rutas
-    base_dir        = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import sys
+    if getattr(sys, 'frozen', False):
+        base_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+    else:
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     template_path   = os.path.join(base_dir, "images", "vacio.xml")
-    new_path        = os.path.join(base_dir, "images", "template_processing.xml")
 
-    shutil.copyfile(template_path,new_path)
-
-    tree2 = ET.parse(new_path)
+    tree2 = ET.parse(template_path)
     root2 = tree2.getroot()
 
     #INGRESO DE PUNTO DE REFERENCIA: netPara

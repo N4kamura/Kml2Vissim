@@ -1,1 +1,1 @@
-pyinstaller --onefile --icon=./images/logo.ico --add-binary "gdalwin/bin/gdal.dll;." --add-binary "gdalwin/bin/gdal/apps/gdal_translate.exe;." ./main.py
+pyinstaller --onefile --console --name Kml2Vissim --icon=images/logo.ico --add-data "images;images" main.py
