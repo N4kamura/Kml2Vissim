@@ -61,4 +61,4 @@ Kml2Vissim/
 ## Créditos
 
 Desarrollado por Nakamura  
-Versión: 3.1.0
+Versión: 4.0.1

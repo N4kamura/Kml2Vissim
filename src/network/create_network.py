@@ -236,31 +236,41 @@ def vissim_creator(kml_path,inpx_file_name) -> None:
     print("FIN DE CREACIÓN DE REDES EN VISSIM")
 
 
-def download_osm_data(min_lon: float, min_lat: float, max_lon: float, max_lat: float, output_file: str) -> bool:
+def download_osm_data(min_lon: float, min_lat: float, max_lon: float, max_lat: float, output_file: str, max_retries: int = 3) -> bool:
     """
     Descarga datos de OpenStreetMap (vías y polígonos/áreas) directamente dentro de los límites
-    de coordenadas del KML (rectángulo delimitador).
-    Primero intenta con la API oficial de OSM (api.openstreetmap.org/api/0.6/map), que descarga
-    únicamente el área acotada sin desbordar relaciones a toda la ciudad, y tiene respaldo en Overpass.
+    de coordenadas del KML (rectángulo delimitador) con reintentos y múltiples servidores de respaldo.
     """
     import requests
+    import time
 
-    # 1. Intentar con la API oficial de OSM (rápida, precisa y estrictamente limitada a la bbox del KML)
+    # 1. API oficial de OSM (rápida, precisa y estrictamente limitada a la bbox del KML)
     osm_api_url = f"https://api.openstreetmap.org/api/0.6/map?bbox={min_lon:.6f},{min_lat:.6f},{max_lon:.6f},{max_lat:.6f}"
-    headers = {'User-Agent': 'Mozilla/5.0 Kml2Vissim/2.0'}
-    try:
-        print(f"Descargando datos OSM delimitados desde OSM API ({min_lon:.4f},{min_lat:.4f} a {max_lon:.4f},{max_lat:.4f})...")
-        resp = requests.get(osm_api_url, headers=headers, timeout=25)
-        if resp.status_code == 200 and b"<osm" in resp.content[:1000]:
-            with open(output_file, "wb") as f:
-                f.write(resp.content)
-            print(f"Datos OSM descargados exitosamente desde API oficial ({len(resp.content)} bytes).")
-            return True
-    except Exception as e:
-        print(f"OSM API no disponible ({e}), intentando servidores Overpass...")
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Kml2Vissim/4.0.1'}
 
-    # 2. Respaldo: Overpass API con consulta acotada a vías y sus nodos (sin relaciones extensas de transporte)
-    xml_query = f"""<osm-script timeout="60">
+    print(f"Descargando datos OSM delimitados desde OSM API ({min_lon:.4f},{min_lat:.4f} a {max_lon:.4f},{max_lat:.4f})...")
+    for attempt in range(1, max_retries + 1):
+        try:
+            if attempt > 1:
+                print(f"  Reintentando OSM API (intento {attempt}/{max_retries})...")
+            resp = requests.get(osm_api_url, headers=headers, timeout=20)
+            if resp.status_code == 200 and b"<osm" in resp.content[:1000]:
+                with open(output_file, "wb") as f:
+                    f.write(resp.content)
+                print(f"Datos OSM descargados exitosamente desde API oficial ({len(resp.content)} bytes).")
+                return True
+            else:
+                print(f"  OSM API respondió con código {resp.status_code}.")
+        except Exception as e:
+            print(f"  Error conectando a OSM API (intento {attempt}/{max_retries}): {e}")
+        
+        if attempt < max_retries:
+            time.sleep(1.5)
+
+    print("OSM API no disponible tras varios intentos. Intentando servidores Overpass de respaldo...")
+
+    # 2. Respaldo: Servidores Overpass API con consulta acotada a vías y sus nodos (sin relaciones extensas de transporte)
+    xml_query = f"""<osm-script timeout="40">
 <union>
   <query type="way">
     <bbox-query n="{max_lat:.6f}" s="{min_lat:.6f}" w="{min_lon:.6f}" e="{max_lon:.6f}"/>
@@ -272,28 +282,33 @@ def download_osm_data(min_lon: float, min_lat: float, max_lon: float, max_lat: f
 
     overpass_headers = {
         'Content-Type': 'application/xml',
-        'User-Agent': 'Eclipse SUMO osmGet.py (sumo@dlr.de)',
+        'User-Agent': 'Kml2Vissim/4.0.1 (sumo-export)',
         'Accept-Encoding': 'gzip'
     }
 
     endpoints = [
+        "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
         "https://overpass-api.de/api/interpreter",
         "https://overpass.kumi.systems/api/interpreter",
-        "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter",
     ]
 
     for url in endpoints:
-        try:
-            print(f"Descargando datos OSM desde {url}...")
-            resp = requests.post(url, data=xml_query.encode('utf-8'), headers=overpass_headers, timeout=25)
-            if resp.status_code == 200 and b"<osm" in resp.content[:1000]:
-                with open(output_file, "wb") as f:
-                    f.write(resp.content)
-                print(f"Datos OSM descargados exitosamente ({len(resp.content)} bytes).")
-                return True
-        except Exception as e:
-            print(f"Error conectando a {url}: {e}. Intentando siguiente servidor...")
-            continue
+        for attempt in range(1, 3):
+            try:
+                attempt_str = f" (intento {attempt}/2)" if attempt > 1 else ""
+                print(f"Descargando datos OSM desde {url}{attempt_str}...")
+                resp = requests.post(url, data=xml_query.encode('utf-8'), headers=overpass_headers, timeout=20)
+                if resp.status_code == 200 and b"<osm" in resp.content[:1000]:
+                    with open(output_file, "wb") as f:
+                        f.write(resp.content)
+                    print(f"Datos OSM descargados exitosamente ({len(resp.content)} bytes).")
+                    return True
+                else:
+                    print(f"  {url} respondió con código HTTP {resp.status_code}.")
+            except Exception as e:
+                print(f"  Error conectando a {url}: {e}")
+            time.sleep(1)
 
     return False
 

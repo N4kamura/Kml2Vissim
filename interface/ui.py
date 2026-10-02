@@ -75,7 +75,7 @@ class Ui_MainWindow(object):
         self.radioButton_vissim.setText(_translate("MainWindow", "Vissim"))
         self.radioButton_sumo.setText(_translate("MainWindow", "SUMO"))
         self.label_3.setText(_translate("MainWindow", "Archivos válidos: .kml"))
-        self.label_5.setText(_translate("MainWindow", "Credits: Nakamura     Version: 2.0"))
+        self.label_5.setText(_translate("MainWindow", "Credits: Nakamura     Version: 4.0.1"))
         self.pushButton_2.setText(_translate("MainWindow", "Iniciar"))
         self.textBrowser.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"

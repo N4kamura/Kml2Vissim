@@ -150,7 +150,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Credits: Nakamura     Version: 2.0</string>
+     <string>Credits: Nakamura     Version: 4.0.1</string>
     </property>
    </widget>
    <widget class="QPushButton" name="pushButton_2">
