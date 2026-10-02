@@ -235,27 +235,39 @@ def vissim_creator(kml_path,inpx_file_name) -> None:
 
 def download_osm_data(min_lon: float, min_lat: float, max_lon: float, max_lat: float, output_file: str) -> bool:
     """
-    Descarga datos de OpenStreetMap (vías y polígonos/áreas) directamente desde Overpass API
-    usando una consulta optimizada que no se queda colgada ni produce timeouts.
+    Descarga datos de OpenStreetMap (vías y polígonos/áreas) directamente dentro de los límites
+    de coordenadas del KML (rectángulo delimitador).
+    Primero intenta con la API oficial de OSM (api.openstreetmap.org/api/0.6/map), que descarga
+    únicamente el área acotada sin desbordar relaciones a toda la ciudad, y tiene respaldo en Overpass.
     """
     import requests
 
+    # 1. Intentar con la API oficial de OSM (rápida, precisa y estrictamente limitada a la bbox del KML)
+    osm_api_url = f"https://api.openstreetmap.org/api/0.6/map?bbox={min_lon:.6f},{min_lat:.6f},{max_lon:.6f},{max_lat:.6f}"
+    headers = {'User-Agent': 'Mozilla/5.0 Kml2Vissim/2.0'}
+    try:
+        print(f"Descargando datos OSM delimitados desde OSM API ({min_lon:.4f},{min_lat:.4f} a {max_lon:.4f},{max_lat:.4f})...")
+        resp = requests.get(osm_api_url, headers=headers, timeout=25)
+        if resp.status_code == 200 and b"<osm" in resp.content[:1000]:
+            with open(output_file, "wb") as f:
+                f.write(resp.content)
+            print(f"Datos OSM descargados exitosamente desde API oficial ({len(resp.content)} bytes).")
+            return True
+    except Exception as e:
+        print(f"OSM API no disponible ({e}), intentando servidores Overpass...")
+
+    # 2. Respaldo: Overpass API con consulta acotada a vías y sus nodos (sin relaciones extensas de transporte)
     xml_query = f"""<osm-script timeout="60">
 <union>
   <query type="way">
     <bbox-query n="{max_lat:.6f}" s="{min_lat:.6f}" w="{min_lon:.6f}" e="{max_lon:.6f}"/>
   </query>
   <recurse type="way-node"/>
-  <query type="relation">
-    <bbox-query n="{max_lat:.6f}" s="{min_lat:.6f}" w="{min_lon:.6f}" e="{max_lon:.6f}"/>
-  </query>
-  <recurse type="relation-way"/>
-  <recurse type="way-node"/>
 </union>
 <print mode="body"/>
 </osm-script>"""
 
-    headers = {
+    overpass_headers = {
         'Content-Type': 'application/xml',
         'User-Agent': 'Eclipse SUMO osmGet.py (sumo@dlr.de)',
         'Accept-Encoding': 'gzip'
@@ -265,13 +277,12 @@ def download_osm_data(min_lon: float, min_lat: float, max_lon: float, max_lat: f
         "https://overpass-api.de/api/interpreter",
         "https://overpass.kumi.systems/api/interpreter",
         "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
-        "https://osm.hpi.de/overpass/api/interpreter",
     ]
 
     for url in endpoints:
         try:
             print(f"Descargando datos OSM desde {url}...")
-            resp = requests.post(url, data=xml_query.encode('utf-8'), headers=headers, timeout=25)
+            resp = requests.post(url, data=xml_query.encode('utf-8'), headers=overpass_headers, timeout=25)
             if resp.status_code == 200 and b"<osm" in resp.content[:1000]:
                 with open(output_file, "wb") as f:
                     f.write(resp.content)
@@ -342,7 +353,7 @@ def sumo_creator(kml_path: str, output_name: str) -> None:
     if not netconvert_bin or not polyconvert_bin:
         raise RuntimeError("No se encontraron netconvert y polyconvert. Verifique que SUMO esté instalado y en el PATH.")
 
-    # 3. Descargar datos OSM (red y áreas/polígonos)
+    # 3. Descargar datos OSM acotados al rectángulo del KML
     osm_file = os.path.join(directory, f"{output_name}_bbox.osm.xml")
     ok = download_osm_data(min_lon, min_lat, max_lon, max_lat, osm_file)
     if not ok or not os.path.isfile(osm_file):
@@ -366,12 +377,14 @@ def sumo_creator(kml_path: str, output_name: str) -> None:
     ]
     typefiles = [f for f in typefiles if os.path.isfile(f)]
 
-    # 5. Ejecutar netconvert para generar la red (.net.xml)
+    # 5. Ejecutar netconvert para generar la red (.net.xml) acotada a la frontera del KML
+    bbox_geo = f"{min_lon:.6f},{min_lat:.6f},{max_lon:.6f},{max_lat:.6f}"
     net_file = os.path.join(directory, f"{output_name}.net.xml")
     net_cmd = [
         netconvert_bin,
         "--osm-files", osm_file,
         "-o", net_file,
+        "--keep-edges.in-geo-boundary", bbox_geo,
         "--geometry.remove",
         "--ramps.guess",
         "--junctions.join",
@@ -388,18 +401,19 @@ def sumo_creator(kml_path: str, output_name: str) -> None:
     if typefiles:
         net_cmd += ["-t", ",".join(typefiles)]
 
-    print(f"Ejecutando netconvert para crear {output_name}.net.xml...")
+    print(f"Ejecutando netconvert para crear {output_name}.net.xml delimitado...")
     res_net = subprocess.run(net_cmd, capture_output=True, text=True, cwd=directory)
     if res_net.returncode != 0:
         print("Advertencia en netconvert:", res_net.stderr)
 
-    # 6. Ejecutar polyconvert para generar los polígonos (.poly.xml)
+    # 6. Ejecutar polyconvert para generar los polígonos (.poly.xml) recortados a la red
     poly_file = os.path.join(directory, f"{output_name}.poly.xml")
     poly_cmd = [
         polyconvert_bin,
         "--osm-files", osm_file,
         "-n", net_file,
         "-o", poly_file,
+        "--prune.in-net",
         "--osm.keep-full-type",
         "--osm.merge-relations", "1"
     ]
