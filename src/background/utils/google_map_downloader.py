@@ -1,6 +1,8 @@
 from src.background.utils.geographic_tools import *
+from shapely.geometry import box
 import requests
 import os
+import math
 
 class GoogleMapDownloader:
     def __init__(self,points,zoom):
@@ -54,15 +56,73 @@ class GoogleMapDownloader:
 
         return int(point_x),int(point_y)
     
-    def generate_image(self,x,y,count,path):
+    def world_pixel(self,lat,lng) -> tuple[float,float]:
+        tile_size=256
+        numTiles=1 << self.zoom
+
+        world_x=(lng + 180.0) / 360.0 * numTiles * tile_size
+        lat_rad=math.radians(lat)
+        world_y=(1 - math.log(math.tan(lat_rad) + 1/math.cos(lat_rad)) / math.pi) / 2 * numTiles * tile_size
+
+        return world_x,world_y
+
+    def lat_to_tile_y(self,lat) -> int:
+        numTiles=1 << self.zoom
+        lat_rad=math.radians(lat)
+        world_y=(1 - math.log(math.tan(lat_rad) + 1/math.cos(lat_rad)) / math.pi) / 2 * numTiles
+
+        return int(math.floor(world_y))
+
+    def tiles_for_polygon(self,polygon) -> set:
+        # polygon es un shapely.Polygon en orden (lon,lat)
+        numTiles=1 << self.zoom
+        min_lon,min_lat,max_lon,max_lat=polygon.bounds
+
+        min_x=self.get_XY(min_lat,min_lon)[0]
+        max_x=self.get_XY(max_lat,max_lon)[0]
+        min_y=self.lat_to_tile_y(max_lat)
+        max_y=self.lat_to_tile_y(min_lat)
+
+        epsilon=1e-9
+        tiles=set()
+        for x in range(min_x,max_x + 1):
+            lon_west=x / numTiles * 360 - 180
+            lon_east=(x + 1) / numTiles * 360 - 180
+            column=box(lon_west,min_lat - epsilon,lon_east,max_lat + epsilon)
+            intersection=polygon.intersection(column)
+            if intersection.is_empty:
+                continue
+            inter_min_lat=intersection.bounds[1]
+            inter_max_lat=intersection.bounds[3]
+            top_y=max(self.lat_to_tile_y(inter_max_lat),min_y)
+            bottom_y=min(self.lat_to_tile_y(inter_min_lat),max_y)
+            for y in range(top_y,bottom_y + 1):
+                if 0 <= y < numTiles:
+                    tiles.add((x,y))
+
+        return tiles
+
+    def download_image(self,x,y):
         headers={'User-Agent':'MyApp/1.0'}
-        nombre_archivo=f"FOTO_{count}.png"
         url='https://mt0.google.com/vt/lyrs=s&?x=' + str(x) + '&y=' + str(y) + '&z=' + str(self.zoom)
 
-        response = requests.get(url,headers=headers)
+        try:
+            response=requests.get(url,headers=headers)
+        except requests.RequestException as error:
+            print(f"El error es este: {error}")
+            return None
+
         if response.status_code == 200:
-            with open(os.path.join(path,nombre_archivo),'wb') as f:
-                f.write(response.content)
-                # print(f'La imagen {nombre_archivo} se ha guardado exitosamente')
+            return response.content
         else:
             print(f"El error es este: {response.status_code}")
+            return None
+
+    def generate_image(self,x,y,count,path,filename=None):
+        content=self.download_image(x,y)
+        if content is None:
+            return
+        nombre_archivo=filename if filename else f"FOTO_{count}.png"
+        with open(os.path.join(path,nombre_archivo),'wb') as f:
+            f.write(content)
+            # print(f'La imagen {nombre_archivo} se ha guardado exitosamente')

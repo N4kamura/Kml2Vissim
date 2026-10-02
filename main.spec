@@ -4,7 +4,7 @@
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[('gdalwin/bin/gdal.dll', '.'), ('gdalwin/bin/gdal/apps/gdal_translate.exe', '.')],
+    binaries=[],
     datas=[],
     hiddenimports=[],
     hookspath=[],

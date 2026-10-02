@@ -1,5 +1,5 @@
 from src.background.utils.geographic_tools import *
-from src.background.get_background import GoogleMapDownloader  
+from src.background.utils.google_map_downloader import GoogleMapDownloader  
 import xml.etree.ElementTree as ET
 from shapely.geometry import Polygon
 import osmnx as ox
@@ -82,8 +82,9 @@ def vissim_creator(kml_path,inpx_file_name) -> None:
 
     #CONVERSIÓN DEL DATAFRAME A INPX
     #Rutas
-    template_path   = "images/vacio.xml"
-    new_path        = "images/template_processing.xml"
+    base_dir        = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    template_path   = os.path.join(base_dir, "images", "vacio.xml")
+    new_path        = os.path.join(base_dir, "images", "template_processing.xml")
 
     shutil.copyfile(template_path,new_path)
 
@@ -230,3 +231,220 @@ def vissim_creator(kml_path,inpx_file_name) -> None:
     et.write(final_route,xml_declaration=True)
 
     print("FIN DE CREACIÓN DE REDES EN VISSIM")
+
+
+def download_osm_data(min_lon: float, min_lat: float, max_lon: float, max_lat: float, output_file: str) -> bool:
+    """
+    Descarga datos de OpenStreetMap (vías y polígonos/áreas) directamente desde Overpass API
+    usando una consulta optimizada que no se queda colgada ni produce timeouts.
+    """
+    import requests
+
+    xml_query = f"""<osm-script timeout="60">
+<union>
+  <query type="way">
+    <bbox-query n="{max_lat:.6f}" s="{min_lat:.6f}" w="{min_lon:.6f}" e="{max_lon:.6f}"/>
+  </query>
+  <recurse type="way-node"/>
+  <query type="relation">
+    <bbox-query n="{max_lat:.6f}" s="{min_lat:.6f}" w="{min_lon:.6f}" e="{max_lon:.6f}"/>
+  </query>
+  <recurse type="relation-way"/>
+  <recurse type="way-node"/>
+</union>
+<print mode="body"/>
+</osm-script>"""
+
+    headers = {
+        'Content-Type': 'application/xml',
+        'User-Agent': 'Eclipse SUMO osmGet.py (sumo@dlr.de)',
+        'Accept-Encoding': 'gzip'
+    }
+
+    endpoints = [
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+        "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+        "https://osm.hpi.de/overpass/api/interpreter",
+    ]
+
+    for url in endpoints:
+        try:
+            print(f"Descargando datos OSM desde {url}...")
+            resp = requests.post(url, data=xml_query.encode('utf-8'), headers=headers, timeout=25)
+            if resp.status_code == 200 and b"<osm" in resp.content[:1000]:
+                with open(output_file, "wb") as f:
+                    f.write(resp.content)
+                print(f"Datos OSM descargados exitosamente ({len(resp.content)} bytes).")
+                return True
+        except Exception as e:
+            print(f"Error conectando a {url}: {e}. Intentando siguiente servidor...")
+            continue
+
+    return False
+
+
+def sumo_creator(kml_path: str, output_name: str) -> None:
+    """
+    Crea la red (.net.xml) y las áreas/polígonos (.poly.xml) de SUMO
+    a partir del polígono definido en un archivo KML, usando netconvert y polyconvert de SUMO.
+    No descarga imágenes, ya que estas son gestionadas por kml2sumo_decal.
+    """
+    import subprocess
+
+    # 1. Leer archivo KML para obtener las coordenadas del polígono
+    tree0 = ET.parse(kml_path)
+    root0 = tree0.getroot()
+    coordinates_element = root0.find('.//{http://www.opengis.net/kml/2.2}coordinates')
+
+    if coordinates_element is None:
+        print("No se encontraron coordenadas en el KML")
+        return
+
+    coordinates_text = coordinates_element.text
+    coordinates_list = [coord.strip().split(',')[:2] for coord in coordinates_text.split()]
+    polygon_coordinates = [(float(lon), float(lat)) for lon, lat in coordinates_list]
+
+    min_lon = min(lon for lon, lat in polygon_coordinates)
+    max_lon = max(lon for lon, lat in polygon_coordinates)
+    min_lat = min(lat for lon, lat in polygon_coordinates)
+    max_lat = max(lat for lon, lat in polygon_coordinates)
+
+    directory, _ = os.path.split(os.path.abspath(kml_path))
+
+    # 2. Localizar instalación de SUMO y sus ejecutables
+    sumo_home = os.environ.get("SUMO_HOME")
+    if not sumo_home:
+        for candidate in [
+            r"D:\Programs\Eclipse\Sumo",
+            r"C:\Program Files (x86)\Eclipse\Sumo",
+            r"C:\Program Files\Eclipse\Sumo",
+        ]:
+            if os.path.isdir(candidate):
+                sumo_home = candidate
+                break
+
+    netconvert_bin = None
+    polyconvert_bin = None
+    if sumo_home:
+        cand_nc = os.path.join(sumo_home, "bin", "netconvert.exe" if os.name == "nt" else "netconvert")
+        cand_pc = os.path.join(sumo_home, "bin", "polyconvert.exe" if os.name == "nt" else "polyconvert")
+        if os.path.isfile(cand_nc):
+            netconvert_bin = cand_nc
+        if os.path.isfile(cand_pc):
+            polyconvert_bin = cand_pc
+
+    if not netconvert_bin:
+        netconvert_bin = shutil.which("netconvert")
+    if not polyconvert_bin:
+        polyconvert_bin = shutil.which("polyconvert")
+
+    if not netconvert_bin or not polyconvert_bin:
+        raise RuntimeError("No se encontraron netconvert y polyconvert. Verifique que SUMO esté instalado y en el PATH.")
+
+    # 3. Descargar datos OSM (red y áreas/polígonos)
+    osm_file = os.path.join(directory, f"{output_name}_bbox.osm.xml")
+    ok = download_osm_data(min_lon, min_lat, max_lon, max_lat, osm_file)
+    if not ok or not os.path.isfile(osm_file):
+        raise RuntimeError("No se pudo descargar el mapa desde OpenStreetMap.")
+
+    # 4. Configurar typemaps de SUMO
+    typemapdir = os.path.join(sumo_home, "data", "typemap") if sumo_home else ""
+    typemaps = {
+        "net": os.path.join(typemapdir, "osmNetconvert.typ.xml"),
+        "poly": os.path.join(typemapdir, "osmPolyconvert.typ.xml"),
+        "urban": os.path.join(typemapdir, "osmNetconvertUrbanDe.typ.xml"),
+        "pedestrians": os.path.join(typemapdir, "osmNetconvertPedestrians.typ.xml"),
+        "bicycles": os.path.join(typemapdir, "osmNetconvertBicycle.typ.xml"),
+    }
+
+    typefiles = [
+        typemaps["net"],
+        typemaps["urban"],
+        typemaps["pedestrians"],
+        typemaps["bicycles"],
+    ]
+    typefiles = [f for f in typefiles if os.path.isfile(f)]
+
+    # 5. Ejecutar netconvert para generar la red (.net.xml)
+    net_file = os.path.join(directory, f"{output_name}.net.xml")
+    net_cmd = [
+        netconvert_bin,
+        "--osm-files", osm_file,
+        "-o", net_file,
+        "--geometry.remove",
+        "--ramps.guess",
+        "--junctions.join",
+        "--tls.guess-signals",
+        "--tls.discard-simple",
+        "--tls.join",
+        "--tls.default-type", "actuated",
+        "--crossings.guess",
+        "--osm.sidewalks",
+        "--osm.bike-access",
+        "--output.original-names",
+        "--output.street-names"
+    ]
+    if typefiles:
+        net_cmd += ["-t", ",".join(typefiles)]
+
+    print(f"Ejecutando netconvert para crear {output_name}.net.xml...")
+    res_net = subprocess.run(net_cmd, capture_output=True, text=True, cwd=directory)
+    if res_net.returncode != 0:
+        print("Advertencia en netconvert:", res_net.stderr)
+
+    # 6. Ejecutar polyconvert para generar los polígonos (.poly.xml)
+    poly_file = os.path.join(directory, f"{output_name}.poly.xml")
+    poly_cmd = [
+        polyconvert_bin,
+        "--osm-files", osm_file,
+        "-n", net_file,
+        "-o", poly_file,
+        "--osm.keep-full-type",
+        "--osm.merge-relations", "1"
+    ]
+    if os.path.isfile(typemaps["poly"]):
+        poly_cmd += ["--type-file", typemaps["poly"]]
+
+    print(f"Ejecutando polyconvert para crear {output_name}.poly.xml...")
+    res_poly = subprocess.run(poly_cmd, capture_output=True, text=True, cwd=directory)
+    if res_poly.returncode != 0:
+        print("Advertencia en polyconvert:", res_poly.stderr)
+
+    # 7. Generar archivo de vista (.view.xml) incluyendo decals si existen
+    view_file = os.path.join(directory, f"{output_name}.view.xml")
+    decals_rel_path = f"DECALS_{output_name}/{output_name}_decals.xml"
+    with open(view_file, "w", encoding="utf-8") as f:
+        f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+        f.write('<viewsettings>\n')
+        f.write('    <scheme name="real world"/>\n')
+        f.write('    <delay value="20"/>\n')
+        f.write(f'    <include href="{decals_rel_path}"/>\n')
+        f.write('</viewsettings>\n')
+
+    # 8. Generar archivo de configuración (.sumocfg)
+    cfg_file = os.path.join(directory, f"{output_name}.sumocfg")
+    net_rel = f"{output_name}.net.xml"
+    poly_rel = f"{output_name}.poly.xml"
+    view_rel = f"{output_name}.view.xml"
+    poly_exists = os.path.isfile(poly_file)
+
+    with open(cfg_file, "w", encoding="utf-8") as f:
+        f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+        f.write('<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">\n')
+        f.write('    <input>\n')
+        f.write(f'        <net-file value="{net_rel}"/>\n')
+        if poly_exists:
+            f.write(f'        <additional-files value="{poly_rel}"/>\n')
+        f.write('    </input>\n')
+        f.write('    <gui_only>\n')
+        f.write(f'        <gui-settings-file value="{view_rel}"/>\n')
+        f.write('    </gui_only>\n')
+        f.write('</configuration>\n')
+
+    # 9. Generar script bat para ejecución directa
+    run_bat = os.path.join(directory, f"run_{output_name}.bat")
+    with open(run_bat, "w", encoding="utf-8") as f:
+        f.write(f'@echo off\nsumo-gui -c "{output_name}.sumocfg"\n')
+
+    print(f"RED Y POLÍGONOS DE SUMO GENERADOS EXITOSAMENTE EN: {directory}")
