@@ -62,3 +62,7 @@ Kml2Vissim/
 
 Desarrollado por Nakamura  
 Versión: 4.0.1
+
+## Licencia
+
+Este proyecto es de código abierto y sin fines de lucro, distribuido bajo la [Licencia MIT](LICENSE) con atribución obligatoria al autor original. Consulta el archivo [LICENSE](LICENSE) para ver los términos completos y los reconocimientos a **Eclipse SUMO**, **PTV Vissim** y **OpenStreetMap**.
