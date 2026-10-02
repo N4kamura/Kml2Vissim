@@ -39,7 +39,7 @@ def kml2png_function(kml_file,inpx_file_name) -> None:
 
     #MANIPULACION DE PATH PARA SUBIR LAS FOTOGRAFIAS
     directory, _ = os.path.split(kml_file)
-    path = directory + '/' + 'FOTOGRAFIAS_'+inpx_file_name
+    path = os.path.join(directory, 'background')
     os.makedirs(path, exist_ok=True)
 
     image_width     = 256
@@ -108,25 +108,32 @@ def convert_background(kml_file,inpx_file_name) -> None:
 
     ###CONVERSION DIRECTA A FORMATO .jpg (sin GDAL; la georreferencia va en el .inpx)
     folder_path, _ = os.path.split(kml_file)
-    input_png = folder_path + '/FOTOGRAFIAS_'+inpx_file_name+'/FOTO_TOTAL.png'
-    output_jpg = folder_path + '/FOTOGRAFIAS_'+inpx_file_name+'/FOTO_TOTAL.jpg'
+    background_dir = os.path.join(folder_path, 'background')
+    os.makedirs(background_dir, exist_ok=True)
+    input_png = os.path.join(background_dir, 'FOTO_TOTAL.png')
+    output_jpg = os.path.join(background_dir, 'FOTO_TOTAL.jpg')
+
+    if not os.path.isfile(input_png):
+        print(f"No se encontró la imagen de fondo: {input_png}. Se mantiene el archivo de red .inpx sin background.")
+        return
 
     imagen = cv2.imread(input_png)
     if imagen is None:
-        print(f"No se pudo leer la imagen de fondo: {input_png}")
+        print(f"No se pudo leer la imagen de fondo: {input_png}. Se mantiene el archivo de red .inpx sin background.")
         return
     cv2.imwrite(output_jpg, imagen, [cv2.IMWRITE_JPEG_QUALITY, 90])
 
-    #Eliminación de archivos innecesarios:
-    photos_path = os.path.join(folder_path, 'FOTOGRAFIAS_'+inpx_file_name)
-    photos_list = os.listdir(photos_path)
-    photos_list = [photo for photo in photos_list if not photo.endswith('.jpg')]
-    for photo in photos_list:
-        delete_file = os.path.join(photos_path, photo)
-        os.remove(delete_file)
+    # Eliminación de archivo png temporal:
+    try:
+        os.remove(input_png)
+    except OSError:
+        pass
 
     #ESCRITURA EXTRA EN ARCHIVO DE INPX
-    archivo_inpx = folder_path +'\\'+ inpx_file_name + '.inpx'
+    archivo_inpx = os.path.join(folder_path, inpx_file_name + '.inpx')
+    if not os.path.isfile(archivo_inpx):
+        print(f"No se encontró el archivo base de red: {archivo_inpx}")
+        return
     
     tree = ET.parse(archivo_inpx)
     root = tree.getroot()
@@ -141,7 +148,7 @@ def convert_background(kml_file,inpx_file_name) -> None:
     backgroundImage.set('anisoFilt','true')
     backgroundImage.set('level','1')
     backgroundImage.set('no','1')
-    backgroundImage.set('pathFilename',f'./FOTOGRAFIAS_{inpx_file_name}/FOTO_TOTAL.jpg')
+    backgroundImage.set('pathFilename','./background/FOTO_TOTAL.jpg')
     backgroundImage.set('res3D','HIGH')
     backgroundImage.set('tileSizeHoriz','512')
     backgroundImage.set('tileSizeVert','512')
@@ -164,8 +171,15 @@ def convert_background(kml_file,inpx_file_name) -> None:
     
     ET.indent(root)
     et = ET.ElementTree(root)
-    et.write(folder_path + "\\"+inpx_file_name+"_Background"+".inpx",xml_declaration=True)
-    print("FIN DE ESCRITURA DE ARCHIVO .INPX CON BACKGROUND INCLUIDO")
+    temp_bg_inpx = os.path.join(folder_path, inpx_file_name + "_Background.inpx")
+    et.write(temp_bg_inpx, xml_declaration=True)
+
+    # Reemplazar el archivo inicial por el que incluye background
+    if os.path.isfile(temp_bg_inpx):
+        if os.path.isfile(archivo_inpx):
+            os.remove(archivo_inpx)
+        os.replace(temp_bg_inpx, archivo_inpx)
+        print(f"FIN DE ESCRITURA DE ARCHIVO .INPX CON BACKGROUND INCLUIDO: {archivo_inpx}")
 
 
 WEB_MERCATOR_RADIUS = 6378137.0
@@ -239,9 +253,9 @@ def kml2sumo_decal(kml_file, output_name, tile_size=4096, jpg_quality=95) -> Non
     # El tamaño de bloque debe ser múltiplo del tamaño de tesela para no cortar teselas
     tile_size = max(SOURCE_TILE_PIXELS, int(math.ceil(tile_size / SOURCE_TILE_PIXELS)) * SOURCE_TILE_PIXELS)
 
-    # Carpeta de salida (junto al KML): DECALS_<nombre>/
+    # Carpeta de salida (junto al KML): background/
     directory, _ = os.path.split(kml_file)
-    out_dir = os.path.join(directory, 'DECALS_' + output_name)
+    out_dir = os.path.join(directory, 'background')
     os.makedirs(out_dir, exist_ok=True)
 
     # Intentar cargar la red SUMO si ya fue generada para asegurar alineación perfecta de coordenadas

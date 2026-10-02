@@ -23,8 +23,8 @@ La aplicación extrae la red vial de OpenStreetMap delimitada estrictamente al �
    - Haga clic en **"Iniciar"** para comenzar el proceso de conversión.
 
 3. La aplicación generará en la misma carpeta del KML:
-   - **Para Vissim:** Archivo de red `.inpx`, carpeta con imagen satelital (`FOTOGRAFIAS_<nombre>/FOTO_TOTAL.jpg`) y archivo con fondo integrado (`<nombre>_Background.inpx`).
-   - **Para SUMO:** Red vial acotada (`<nombre>.net.xml`), polígonos/edificios (`<nombre>.poly.xml`), decals satelitales georreferenciados (`DECALS_<nombre>/`), archivo de vista (`<nombre>.view.xml`), configuración (`<nombre>.sumocfg`) y script lanzador directo (`run_<nombre>.bat`).
+   - **Para Vissim:** Archivo de red `.inpx` (con fondo satelital integrado) y subcarpeta `background/` con la imagen satelital (`background/FOTO_TOTAL.jpg`). Si por alguna razón la imagen no se puede descargar, se conserva el `.inpx` solo con la red.
+   - **Para SUMO:** Red vial (`<nombre>.net.xml`), configuración (`<nombre>.sumocfg`), script lanzador directo (`run_<nombre>.bat`) y subcarpeta `background/` conteniendo polígonos (`<nombre>.poly.xml`), vista (`<nombre>.view.xml`), datos OSM (`<nombre>_bbox.osm.xml`) y decals satelitales georreferenciados.
 
 ## Compilación desde el Código Fuente
 
@@ -45,7 +45,7 @@ Para generar el ejecutable autocontenido (`--onefile`) con consola activa:
 ```
 Kml2Vissim/
 ├── main.py                   # Punto de entrada de la aplicación
-├── main.spec                 # Configuración de PyInstaller
+├── Kml2Vissim.spec           # Configuración de PyInstaller
 ├── requirements.txt          # Dependencias de Python
 ├── comando_pyinstaller.txt   # Comando de compilación
 ├── interface/                # Interfaz gráfica PyQt5

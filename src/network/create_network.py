@@ -227,9 +227,11 @@ def vissim_creator(kml_path,inpx_file_name) -> None:
     #TRATAMIENTO DE LA RUTA DESTINO:
     original_path = kml_path
     directory, _ = os.path.split(original_path)
-    final_route = directory + '/' + inpx_file_name + '.inpx'
+    background_dir = os.path.join(directory, 'background')
+    os.makedirs(background_dir, exist_ok=True)
+    final_route = os.path.join(directory, inpx_file_name + '.inpx')
 
-    et.write(final_route,xml_declaration=True)
+    et.write(final_route, xml_declaration=True)
 
     print("FIN DE CREACIÓN DE REDES EN VISSIM")
 
@@ -323,6 +325,8 @@ def sumo_creator(kml_path: str, output_name: str) -> None:
     max_lat = max(lat for lon, lat in polygon_coordinates)
 
     directory, _ = os.path.split(os.path.abspath(kml_path))
+    background_dir = os.path.join(directory, 'background')
+    os.makedirs(background_dir, exist_ok=True)
 
     # 2. Localizar instalación de SUMO y sus ejecutables
     sumo_home = os.environ.get("SUMO_HOME")
@@ -354,8 +358,8 @@ def sumo_creator(kml_path: str, output_name: str) -> None:
     if not netconvert_bin or not polyconvert_bin:
         raise RuntimeError("No se encontraron netconvert y polyconvert. Verifique que SUMO esté instalado y en el PATH.")
 
-    # 3. Descargar datos OSM acotados al rectángulo del KML
-    osm_file = os.path.join(directory, f"{output_name}_bbox.osm.xml")
+    # 3. Descargar datos OSM acotados al rectángulo del KML (en carpeta background)
+    osm_file = os.path.join(background_dir, f"{output_name}_bbox.osm.xml")
     ok = download_osm_data(min_lon, min_lat, max_lon, max_lat, osm_file)
     if not ok or not os.path.isfile(osm_file):
         raise RuntimeError("No se pudo descargar el mapa desde OpenStreetMap.")
@@ -407,8 +411,8 @@ def sumo_creator(kml_path: str, output_name: str) -> None:
     if res_net.returncode != 0:
         print("Advertencia en netconvert:", res_net.stderr)
 
-    # 6. Ejecutar polyconvert para generar los polígonos (.poly.xml) recortados a la red
-    poly_file = os.path.join(directory, f"{output_name}.poly.xml")
+    # 6. Ejecutar polyconvert para generar los polígonos (.poly.xml) en background/
+    poly_file = os.path.join(background_dir, f"{output_name}.poly.xml")
     poly_cmd = [
         polyconvert_bin,
         "--osm-files", osm_file,
@@ -426,22 +430,22 @@ def sumo_creator(kml_path: str, output_name: str) -> None:
     if res_poly.returncode != 0:
         print("Advertencia en polyconvert:", res_poly.stderr)
 
-    # 7. Generar archivo de vista (.view.xml) incluyendo decals si existen
-    view_file = os.path.join(directory, f"{output_name}.view.xml")
-    decals_rel_path = f"DECALS_{output_name}/{output_name}_decals.xml"
+    # 7. Generar archivo de vista (.view.xml) en background/
+    view_file = os.path.join(background_dir, f"{output_name}.view.xml")
+    decals_filename = f"{output_name}_decals.xml"
     with open(view_file, "w", encoding="utf-8") as f:
         f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
         f.write('<viewsettings>\n')
         f.write('    <scheme name="real world"/>\n')
         f.write('    <delay value="20"/>\n')
-        f.write(f'    <include href="{decals_rel_path}"/>\n')
+        f.write(f'    <include href="{decals_filename}"/>\n')
         f.write('</viewsettings>\n')
 
-    # 8. Generar archivo de configuración (.sumocfg)
+    # 8. Generar archivo de configuración (.sumocfg) referenciando background/
     cfg_file = os.path.join(directory, f"{output_name}.sumocfg")
     net_rel = f"{output_name}.net.xml"
-    poly_rel = f"{output_name}.poly.xml"
-    view_rel = f"{output_name}.view.xml"
+    poly_rel = f"background/{output_name}.poly.xml"
+    view_rel = f"background/{output_name}.view.xml"
     poly_exists = os.path.isfile(poly_file)
 
     with open(cfg_file, "w", encoding="utf-8") as f:
